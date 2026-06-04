@@ -1,21 +1,25 @@
-from pathlib import Path
 import pandas as pd
 from sqlalchemy import create_engine
+import os
 
-engine = create_engine("sqlite:///data/db/bluestock_mf.db")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+db_path = os.path.join(BASE_DIR, "bluestock_mf.db")
 
-processed = Path("data/processed")
+engine = create_engine(f"sqlite:///{db_path}")
 
-for file in processed.glob("*.csv"):
-    df = pd.read_csv(file)
+def load(file, table):
+    path = os.path.join(BASE_DIR, "data/processed", file)
+    
+    df = pd.read_csv(path)
+    print(f"Loaded {file} -> {df.shape}")
 
-    table_name = file.stem
+    df.to_sql(table, engine, if_exists="replace", index=False)
+    print(f"✔ Inserted into {table}")
 
-    df.to_sql(
-        table_name,
-        engine,
-        if_exists="replace",
-        index=False
-    )
+load("02_nav_history_clean.csv", "fact_nav")
+load("08_investor_transactions_clean.csv", "fact_transactions")
+load("07_scheme_performance_clean.csv", "fact_performance")
+load("03_aum_by_fund_house_clean.csv", "fact_aum")
 
-    print(f"Loaded {table_name}")
+print("✅ DATABASE READY")
+print("DB LOCATION:", db_path)
